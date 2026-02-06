@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Stock Market Suite",
-  description: "Market analysis + trading (MVP)",
+  title: 'Nebula Trade Desk',
+  description: 'Unified market intelligence terminal for US + India trading',
 };
 
 export default function RootLayout({
