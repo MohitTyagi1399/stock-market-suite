@@ -52,12 +52,13 @@ export class OrdersService {
         limitPrice: input.limitPrice,
         timeInForce: input.broker === 'ALPACA' ? 'day' : 'day',
       });
+      const mappedStatus = this.mapStatus(result.status) ?? 'ACCEPTED';
 
       const updated = await this.prisma.order.update({
         where: { id: order.id },
         data: {
           brokerOrderId: result.brokerOrderId || null,
-          status: 'ACCEPTED',
+          status: mappedStatus,
           rawPayload: result.raw as any,
         },
         select: { id: true, brokerOrderId: true, status: true },
@@ -144,4 +145,3 @@ export class OrdersService {
     return null;
   }
 }
-

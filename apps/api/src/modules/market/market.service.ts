@@ -11,6 +11,10 @@ export class MarketService {
     private readonly brokers: BrokersService,
   ) {}
 
+  private isSandboxMode() {
+    return (process.env.BROKER_SANDBOX_MODE ?? '').toLowerCase() === 'true';
+  }
+
   private async resolveBrokerForInstrument(instrumentId: string): Promise<{ broker: Broker; market: 'US' | 'IN'; externalIdForQuote: string; externalIdForCandles: string }> {
     const instrument = await this.prisma.instrument.findUnique({
       where: { id: instrumentId },
@@ -27,14 +31,14 @@ export class MarketService {
     }
     const md = (instrument.metadata ?? {}) as any;
     const token = md.instrumentToken ? String(md.instrumentToken) : '';
-    if (!token) {
+    if (!token && !this.isSandboxMode()) {
       throw new NotFoundException('IN instruments require metadata.instrumentToken for candles');
     }
     return {
       broker: 'ZERODHA',
       market: 'IN',
       externalIdForQuote: instrument.id,
-      externalIdForCandles: token,
+      externalIdForCandles: token || instrument.id,
     };
   }
 

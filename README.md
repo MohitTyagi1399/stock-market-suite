@@ -45,6 +45,8 @@ pnpm dev
 Web: `http://localhost:3000`  
 API: `http://localhost:3001` (Swagger: `http://localhost:3001/docs`)
 
+On first `watchlists` load for a new user, the API auto-creates a starter watchlist (`Market Pulse`) with sample US + India symbols including Tata, HDFC, and Silver tickers.
+
 ## Background workers
 - Alert evaluation jobs are queued in BullMQ queue `alert-eval`.
 - Push notification jobs are queued in `notifications`.
@@ -76,8 +78,15 @@ Required GitHub secrets:
 - `RENDER_DEPLOY_HOOK_API`
 - `FLY_API_TOKEN`
 
+### Run from GitHub (cloud)
+GitHub itself does not host the app runtime. The repository triggers deployments to Vercel/Render/Fly via workflows:
+1. Add the required secrets in your GitHub repo settings.
+2. Push to `main`.
+3. Check `.github/workflows/deploy-web-vercel.yml` and `.github/workflows/deploy-api-render.yml` (or `deploy-api-fly.yml`) for success.
+4. Open your Vercel site URL for web and your Render/Fly URL for API.
+
 ## Notes
-- India instruments: store `id` like `NSE:INFY` and include `metadata.instrumentToken` for candles.
+- India instruments: store `id` like `NSE:INFY`; for live Zerodha candles use `metadata.instrumentToken`. In sandbox mode, candle fallback works with symbol id.
 - MFA: for API sign-in, MFA code is accepted via `x-mfa-code` header; the web UI handles this.
 - Real-time watchlist quotes: web uses Socket.IO at `API_BASE_URL` with path `/ws`.
 - Expo push notifications are delivered via `https://exp.host/--/api/v2/push/send`.
