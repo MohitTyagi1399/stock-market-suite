@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: stock-market-suite-api
+    env: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    autoDeploy: true
+    plan: starter
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
+      - key: REDIS_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: APP_ENCRYPTION_KEY
+        sync: false
+

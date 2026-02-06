@@ -1,0 +1,232 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Broker {
+  ALPACA
+  ZERODHA
+}
+
+enum Market {
+  US
+  IN
+}
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderType {
+  MARKET
+  LIMIT
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PARTIALLY_FILLED
+  FILLED
+  CANCELED
+  REJECTED
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  passwordHash       String
+  mfaEnabled         Boolean  @default(false)
+  mfaSecretEnc       String?  // base64 json envelope (nonce,ciphertext,tag)
+  recoveryCodesHash  String?  // json array of argon2 hashes
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  sessions           Session[]
+  brokerConnections  BrokerConnection[]
+  watchlists         Watchlist[]
+  orders             Order[]
+  positions          Position[]
+  alertRules         AlertRule[]
+  notificationDevices NotificationDevice[]
+}
+
+model Session {
+  id               String   @id @default(cuid())
+  userId           String
+  refreshTokenHash String
+  device           String?
+  lastSeen         DateTime @default(now())
+  createdAt        DateTime @default(now())
+  revokedAt        DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model BrokerConnection {
+  id            String   @id @default(cuid())
+  userId        String
+  broker        Broker
+  status        String   @default("CONNECTED")
+  credentialsEnc String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, broker])
+}
+
+model AccountSnapshot {
+  id        String   @id @default(cuid())
+  userId    String
+  broker    Broker
+  balances  Json
+  timestamp DateTime @default(now())
+
+  @@index([userId, broker, timestamp])
+}
+
+model Instrument {
+  id        String   @id // stable external identifier (symbol for US; instrument_token for IN recommended)
+  symbol    String
+  exchange  String?
+  market    Market
+  name      String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  watchlistItems WatchlistItem[]
+  orders         Order[]
+  positions      Position[]
+  candles        Candle[]
+  alertRules     AlertRule[]
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items WatchlistItem[]
+
+  @@index([userId])
+}
+
+model WatchlistItem {
+  id           String   @id @default(cuid())
+  watchlistId  String
+  instrumentId String
+  createdAt    DateTime @default(now())
+
+  watchlist Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  instrument Instrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+
+  @@unique([watchlistId, instrumentId])
+}
+
+model Candle {
+  id           String   @id @default(cuid())
+  instrumentId String
+  timeframe    String
+  t            DateTime
+  o            Float
+  h            Float
+  l            Float
+  c            Float
+  v            Float
+
+  instrument Instrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+
+  @@index([instrumentId, timeframe, t])
+  @@unique([instrumentId, timeframe, t])
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  userId        String
+  broker        Broker
+  brokerOrderId String?
+  instrumentId  String
+  side          OrderSide
+  type          OrderType
+  qty           Float
+  limitPrice    Float?
+  status        OrderStatus @default(PENDING)
+  rawPayload    Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instrument Instrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+
+  @@index([userId, broker, createdAt])
+}
+
+model Position {
+  id           String   @id @default(cuid())
+  userId       String
+  broker       Broker
+  instrumentId String
+  qty          Float
+  avgPrice     Float?
+  pnlFields    Json?
+  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instrument Instrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, broker, instrumentId])
+}
+
+model AlertRule {
+  id           String   @id @default(cuid())
+  userId       String
+  instrumentId String
+  type         String
+  params       Json
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instrument Instrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  events AlertEvent[]
+
+  @@index([userId, enabled])
+}
+
+model AlertEvent {
+  id          String   @id @default(cuid())
+  alertRuleId String
+  triggeredAt DateTime @default(now())
+  payload     Json
+
+  rule AlertRule @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
+}
+
+model NotificationDevice {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String
+  platform  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, token])
+  @@index([userId, updatedAt])
+}
